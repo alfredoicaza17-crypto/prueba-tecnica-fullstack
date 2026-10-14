@@ -48,7 +48,7 @@ La pantalla de listado muestra: **cargando**, **error** entendible con botón **
 - Al tocar una etiqueta, el listado muestra **solo los productos que la tienen**; al tocarla de
   nuevo, se quita el filtro.
 - El cálculo va en la función **`topTags`** que ya existe en
-  `top_tags.dart`. Su documentación define las reglas
+  `lib/features/products/domain/utils/top_tags.dart`. Su documentación define las reglas
   exactas (desempate, mayúsculas, casos borde). **No cambies su firma**
 - Implementación propia, **sin paquetes externos** para esta función.
 

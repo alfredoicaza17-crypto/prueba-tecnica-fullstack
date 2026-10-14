@@ -8,6 +8,7 @@ Thumbs.db
 # Dart / Flutter
 .dart_tool/
 .packages
+.flutter-plugins-dependencies
 build/
 coverage/
 
