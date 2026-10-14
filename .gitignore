@@ -18,3 +18,5 @@ coverage/
 *.jks
 *.keystore
 key.properties
+.vscode/settings.json
+.flutter-plugins-dependencies
