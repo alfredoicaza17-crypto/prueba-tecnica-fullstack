@@ -63,14 +63,37 @@ void main() {
     await tester.pumpWidget(MyApp(productService: service));
     await tester.pumpAndSettle();
 
-    expect(find.text('No se pudieron cargar los productos.'), findsOneWidget);
-    expect(find.textContaining('503'), findsOneWidget);
+    expect(
+      find.text('Error al cargar los datos (código 503).'),
+      findsOneWidget,
+    );
+    expect(find.text('Inténtalo de nuevo más tarde.'), findsOneWidget);
+    expect(find.textContaining('Request to'), findsNothing);
 
     await tester.tap(find.text('Reintentar'));
     await tester.pumpAndSettle();
 
     expect(requestCount, 2);
     expect(find.text('Essence Mascara'), findsOneWidget);
+  });
+
+  testWidgets('shows an offline message for connection errors', (tester) async {
+    final service = ProductService(
+      client: MockClient((request) async {
+        throw http.ClientException('Failed host lookup');
+      }),
+    );
+
+    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sin conexión a internet.'), findsOneWidget);
+    expect(
+      find.text('Comprueba tu conexión e inténtalo de nuevo.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('código'), findsNothing);
+    expect(find.text('Reintentar'), findsOneWidget);
   });
 
   testWidgets('navigates between product pages', (tester) async {

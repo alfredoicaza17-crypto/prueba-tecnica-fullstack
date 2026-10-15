@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' show ClientException;
 
 import '../data/models/product_dto.dart';
 import '../data/services/product_service.dart';
+import '../data/utils/product_api_utils.dart';
+import 'widgets/api_error_view.dart';
 import 'widgets/products_layout.dart';
 
 const _pageSize = 20;
@@ -86,30 +89,14 @@ class _ProductsPageState extends State<ProductsPage> {
     }
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48),
-              const SizedBox(height: 12),
-              const Text('No se pudieron cargar los productos.'),
-              const SizedBox(height: 4),
-              Text(
-                '$_error',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _loadPage(_requestedPage),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
+      final statusCode = switch (_error) {
+        ProductServiceException(:final statusCode) => statusCode,
+        _ => null,
+      };
+      return ApiErrorView(
+        statusCode: statusCode,
+        isOffline: _error is ClientException,
+        onRetry: () => _loadPage(_requestedPage),
       );
     }
 
