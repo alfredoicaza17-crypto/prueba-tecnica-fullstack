@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/models/product_dto.dart';
 import '../data/services/product_service.dart';
+import 'widgets/products_layout.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key, this.service});
@@ -55,17 +56,9 @@ class _ProductsPageState extends State<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Productos'),
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _loadProducts,
-            tooltip: 'Actualizar productos',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+    return ProductsLayout(
+      isRefreshing: _isLoading,
+      onRefresh: _loadProducts,
       body: _buildBody(context),
     );
   }
