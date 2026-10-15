@@ -1,67 +1,107 @@
-# App Flutter TiendaApp
+# TiendaApp
 
-Desarrolla **TiendaApp**, un catálogo de productos que consume la API pública
-[DummyJSON](https://dummyjson.com/docs/products).
+Los requerimientos originales de la prueba están en [`docs/requerimientos/README.md`](docs/requerimientos/README.md).
 
-Una UI simple con widgets de Material es suficiente: evaluamos **estructura, correcto funcionamiento y tests**.
+## Qué hace
 
-La app debe desarrollarse siguiendo los principios de **Clean Architecture** y el patrón **Feature-First**.
+| Requisito | Qué hace la app |
+|---|---|
+| RF-01 | Lista los 20 productos de `GET /products?limit=20&delay=2000`. |
+| RF-02 | Muestra carga, error con botón **Reintentar**, lista vacía y un estado distinto cuando no hay conexión. |
+| RF-03 | Muestra los 5 tags más populares como chips (`topTags`). Al tocar uno filtra la lista y al tocarlo de nuevo se quita el filtro. |
+| RF-04 | Guarda favoritos en SQLite, del más nuevo al más viejo, con un mensaje cuando no hay ninguno. Se pueden quitar desde el listado o desde la pantalla de favoritos. |
 
+## Cómo correr la aplicación
 
-## API
-
-```text
-GET https://dummyjson.com/products?limit=20
+```bash
+flutter pub get
+flutter run
 ```
 
-```json
-{
-  "products": [
-    {
-      "id": 1,
-      "title": "Essence Mascara Lash Princess",
-      "price": 9.99,
-      "tags": ["beauty", "mascara"],
-      "thumbnail": "https://cdn.dummyjson.com/product-images/beauty/essence-mascara-lash-princess/thumbnail.webp"
-    }
-  ],
-  "total": 194, "skip": 0, "limit": 20
-}
+## Tests y análisis
+
+```bash
+flutter analyze
+flutter test
 ```
 
-> 💡 Agrega `&delay=2000` para simular una red lenta.
+Se ejecutan 116 tests.
 
----
+## Cómo probar los estados
 
-## Requisitos funcionales
+La URL del catálogo está en `lib/features/products/data/datasources/product_remote_datasource.dart`.
 
-### RF-01 · Listado
-Muestra los primeros 20 productos con miniatura, título y precio.
+| Estado | Cómo provocarlo |
+|---|---|
+| Carga | Es la URL normal: `delay=2000` mantiene el indicador 2 segundos. |
+| Error del servidor | Cambiar la URL a `https://dummyjson.com/http/500`. |
+| Error 404 | Cambiar la URL a `https://dummyjson.com/http/404`. |
+| Lista vacía | Cambiar la URL a `https://dummyjson.com/products/search?q=zzzzzz`. |
+| Sin conexión | Apagar el wifi del emulador de Android. |
 
-### RF-02 · Estados
-La pantalla de listado muestra: **cargando**, **error** entendible con botón **Reintentar**,
-**lista vacía**, y un mensaje de **sin conexión** distinto del error del servidor.
+Sin conexión es cuando el celular no llega al servidor. Error del servidor es cuando el servidor responde con un status distinto de 200.
 
-### RF-03 · Etiquetas populares
-- Sobre el listado, muestra como *chips* las **5 etiquetas más frecuentes** entre los productos
-  cargados (campo `tags`).
-- Al tocar una etiqueta, el listado muestra **solo los productos que la tienen**; al tocarla de
-  nuevo, se quita el filtro.
-- El cálculo va en la función **`topTags`** que ya existe en
-  `top_tags.dart`. Su documentación define las reglas
-  exactas (desempate, mayúsculas, casos borde). **No cambies su firma**
-- Implementación propia, **sin paquetes externos** para esta función.
+URL normal, para dejarla como estaba:
 
-### RF-04 · Favoritos
-- Cada producto del listado tiene un ícono para **marcar/desmarcar** como favorito.
-- Los favoritos se guardan en una base de datos **SQLite** local, con **`sqflite` o `drift`**
-  (no uses `shared_preferences`, `hive` ni `isar`: evaluamos tu diseño relacional).
-- Por cada favorito se guarda: id, título, precio, URL de la miniatura, **fecha en que se agregó**
-  y **sus etiquetas**.
-- Una pantalla **Favoritos** (accesible desde el AppBar del listado) los muestra del **más reciente
-  al más antiguo**, con título, precio y etiquetas; funciona **sin conexión**; muestra un mensaje si está vacía.
+```
+https://dummyjson.com/products?limit=20&delay=2000
+```
 
+## Arquitectura
 
----
+**Clean Architecture + Feature-First**: el código se agrupa por funcionalidad y dentro de cada una se separa en tres capas.
 
-Crear un PR con la solución
+```
+lib/
+├── main.dart                  inyección de dependencias manual
+├── app.dart                   MaterialApp y providers
+├── core/                      piezas compartidas
+│   ├── database/              esquema SQLite
+│   ├── error/                 excepciones y fallos
+│   ├── theme/                 tema de la app
+│   ├── utils/
+│   └── widgets/
+└── features/
+    ├── products/
+    │   ├── domain/            entidades, contrato del repositorio, casos de uso, topTags
+    │   ├── data/              modelo, datasource remoto, repositorio
+    │   └── presentation/      cubit, página, widgets
+    └── favorites/
+        ├── domain/
+        ├── data/              datasource local (SQLite), repositorio
+        └── presentation/
+```
+
+- **domain** es Dart puro: no conoce Flutter, HTTP ni SQLite.
+- **data** implementa los contratos del dominio. Las excepciones se traducen a fallos antes de subir.
+- **presentation** usa `flutter_bloc` (Cubits). La interfaz solo habla con los casos de uso.
+
+## Base de datos de favoritos
+
+SQLite con tres tablas. `lib/core/database/app_database.dart`.
+
+**`favorites`**: los productos guardados.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | INTEGER | PK, es el id del producto |
+| `title` | TEXT | |
+| `price` | REAL | |
+| `thumbnail_url` | TEXT | |
+| `added_at` | INTEGER | fecha en milisegundos, tiene índice para ordenar del más nuevo al más viejo |
+
+**`tags`**: los tags, sin repetir.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | INTEGER | PK, autoincremental |
+| `name` | TEXT | único, sin distinguir mayúsculas |
+
+**`favorite_tags`**: une cada favorito con sus tags.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `favorite_id` | INTEGER | FK a `favorites`, se borra en cascada |
+| `tag_id` | INTEGER | FK a `tags`, se borra en cascada |
+
+La PK de `favorite_tags` es (`favorite_id`, `tag_id`). Guardar y quitar un favorito se hace en una transacción, y al quitarlo se borran los tags que se quedan sin uso.
