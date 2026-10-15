@@ -1,30 +1,75 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:tienda_app/features/products/data/services/product_service.dart';
 import 'package:tienda_app/main.dart';
 
+const _productResponse = '''
+{
+  "products": [
+    {
+      "id": 1,
+      "title": "Essence Mascara",
+      "description": "A mascara",
+      "category": "beauty",
+      "price": 9.99,
+      "discountPercentage": 7.17,
+      "rating": 4.5,
+      "stock": 5,
+      "thumbnail": "https://example.com/product.jpg",
+      "images": []
+    }
+  ],
+  "total": 1,
+  "skip": 0,
+  "limit": 30
+}
+''';
+
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('shows products returned by fetchProducts', (tester) async {
+    final service = ProductService(
+      client: MockClient((request) async {
+        expect(request.url.queryParameters, {'limit': '30', 'skip': '0'});
+        return http.Response(_productResponse, 200);
+      }),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(MyApp(productService: service));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Productos'), findsOneWidget);
+    expect(find.text('Essence Mascara'), findsOneWidget);
+    expect(find.text('beauty'), findsOneWidget);
+    expect(find.text('\$9.99'), findsOneWidget);
+    expect(find.text('4.5'), findsOneWidget);
+  });
+
+  testWidgets('shows an error and retries fetching products', (tester) async {
+    var requestCount = 0;
+    final service = ProductService(
+      client: MockClient((request) async {
+        requestCount++;
+        if (requestCount == 1) {
+          return http.Response('Unavailable', 503);
+        }
+        return http.Response(_productResponse, 200);
+      }),
+    );
+
+    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No se pudieron cargar los productos.'), findsOneWidget);
+    expect(find.textContaining('503'), findsOneWidget);
+
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+
+    expect(requestCount, 2);
+    expect(find.text('Essence Mascara'), findsOneWidget);
   });
 }
