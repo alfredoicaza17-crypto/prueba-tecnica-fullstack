@@ -4,6 +4,8 @@ import '../data/models/product_dto.dart';
 import '../data/services/product_service.dart';
 import 'widgets/products_layout.dart';
 
+const _pageSize = 20;
+
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key, this.service});
 
@@ -16,6 +18,9 @@ class ProductsPage extends StatefulWidget {
 class _ProductsPageState extends State<ProductsPage> {
   late final ProductService _service;
   List<ProductDto> _products = const [];
+  int _currentPage = 0;
+  int _requestedPage = 0;
+  int _totalProducts = 0;
   Object? _error;
   bool _isLoading = true;
 
@@ -23,7 +28,7 @@ class _ProductsPageState extends State<ProductsPage> {
   void initState() {
     super.initState();
     _service = widget.service ?? ProductService();
-    _loadProducts();
+    _loadPage(0);
   }
 
   @override
@@ -32,17 +37,23 @@ class _ProductsPageState extends State<ProductsPage> {
     super.dispose();
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _loadPage(int page) async {
     setState(() {
       _isLoading = true;
       _error = null;
+      _requestedPage = page;
     });
 
     try {
-      final response = await _service.fetchProducts();
+      final response = await _service.fetchProducts(
+        limit: _pageSize,
+        skip: page * _pageSize,
+      );
       if (!mounted) return;
       setState(() {
         _products = response.products;
+        _currentPage = page;
+        _totalProducts = response.total;
         _isLoading = false;
       });
     } catch (error) {
@@ -58,7 +69,11 @@ class _ProductsPageState extends State<ProductsPage> {
   Widget build(BuildContext context) {
     return ProductsLayout(
       isRefreshing: _isLoading,
-      onRefresh: _loadProducts,
+      onRefresh: () => _loadPage(_currentPage),
+      currentPage: _currentPage,
+      totalPages: (_totalProducts / _pageSize).ceil(),
+      onPreviousPage: () => _loadPage(_currentPage - 1),
+      onNextPage: () => _loadPage(_currentPage + 1),
       body: _buildBody(context),
     );
   }
@@ -88,7 +103,7 @@ class _ProductsPageState extends State<ProductsPage> {
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: _loadProducts,
+                onPressed: () => _loadPage(_requestedPage),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
               ),

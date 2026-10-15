@@ -15,7 +15,7 @@ class ProductService {
   final bool _ownsClient;
 
   Future<ProductsResponseDto> fetchProducts({
-    int limit = 30,
+    int limit = 20,
     int skip = 0,
   }) async {
     if (limit <= 0) {
@@ -57,5 +57,4 @@ class ProductService {
       _client.close();
     }
   }
-
 }

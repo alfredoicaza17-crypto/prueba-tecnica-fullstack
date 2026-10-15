@@ -23,7 +23,7 @@ const _productResponse = '''
   ],
   "total": 1,
   "skip": 0,
-  "limit": 30
+  "limit": 20
 }
 ''';
 
@@ -31,7 +31,7 @@ void main() {
   testWidgets('shows products returned by fetchProducts', (tester) async {
     final service = ProductService(
       client: MockClient((request) async {
-        expect(request.url.queryParameters, {'limit': '30', 'skip': '0'});
+        expect(request.url.queryParameters, {'limit': '20', 'skip': '0'});
         return http.Response(_productResponse, 200);
       }),
     );
@@ -41,7 +41,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.pumpAndSettle();
 
-    expect(find.text('Productos'), findsOneWidget);
+    expect(find.text('Ismael Moron - Tienda App'), findsOneWidget);
     expect(find.text('Essence Mascara'), findsOneWidget);
     expect(find.text('beauty'), findsOneWidget);
     expect(find.text('\$9.99'), findsOneWidget);
@@ -71,5 +71,51 @@ void main() {
 
     expect(requestCount, 2);
     expect(find.text('Essence Mascara'), findsOneWidget);
+  });
+
+  testWidgets('navigates between product pages', (tester) async {
+    var requestCount = 0;
+    final service = ProductService(
+      client: MockClient((request) async {
+        final expectedSkip = ['0', '20', '0'][requestCount];
+        expect(request.url.queryParameters, {
+          'limit': '20',
+          'skip': expectedSkip,
+        });
+        requestCount++;
+        return http.Response(
+          _productResponse.replaceFirst('"total": 1', '"total": 41'),
+          200,
+        );
+      }),
+    );
+
+    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Página 1 de 3'), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.chevron_left),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.byTooltip('Página siguiente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Página 2 de 3'), findsOneWidget);
+    expect(requestCount, 2);
+
+    await tester.tap(find.byTooltip('Página anterior'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Página 1 de 3'), findsOneWidget);
+    expect(requestCount, 3);
   });
 }
