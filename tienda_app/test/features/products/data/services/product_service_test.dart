@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tienda_app/features/products/data/services/product_service.dart';
+import 'package:tienda_app/features/products/data/services/product_service.dart'
+    show ProductService;
+import 'package:tienda_app/features/products/data/utils/product_api_utils.dart'
+    show ProductServiceException;
 
 void main() {
   const productJson = <String, dynamic>{

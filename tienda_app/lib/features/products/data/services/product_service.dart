@@ -1,22 +1,8 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 import '../models/product_dto.dart';
 import '../models/products_response_dto.dart';
-
-class ProductServiceException implements Exception {
-  const ProductServiceException({
-    required this.message,
-    required this.statusCode,
-  });
-
-  final String message;
-  final int statusCode;
-
-  @override
-  String toString() => 'ProductServiceException($statusCode): $message';
-}
+import '../utils/product_api_utils.dart';
 
 class ProductService {
   ProductService({http.Client? client})
@@ -28,7 +14,10 @@ class ProductService {
   final http.Client _client;
   final bool _ownsClient;
 
-  Future<ProductsResponseDto> fetchProducts({int limit = 30, int skip = 0}) async {
+  Future<ProductsResponseDto> fetchProducts({
+    int limit = 30,
+    int skip = 0,
+  }) async {
     if (limit <= 0) {
       throw ArgumentError.value(limit, 'limit', 'Must be greater than zero.');
     }
@@ -43,9 +32,9 @@ class ProductService {
       uri,
       headers: const {'Accept': 'application/json'},
     );
-    _ensureSuccess(response, uri);
+    ProductApiUtils.ensureSuccess(response, uri);
 
-    return ProductsResponseDto.fromJson(_decodeObject(response));
+    return ProductsResponseDto.fromJson(ProductApiUtils.decodeObject(response));
   }
 
   Future<ProductDto> fetchProductById(int id) async {
@@ -58,9 +47,9 @@ class ProductService {
       uri,
       headers: const {'Accept': 'application/json'},
     );
-    _ensureSuccess(response, uri);
+    ProductApiUtils.ensureSuccess(response, uri);
 
-    return ProductDto.fromJson(_decodeObject(response));
+    return ProductDto.fromJson(ProductApiUtils.decodeObject(response));
   }
 
   void close() {
@@ -69,20 +58,4 @@ class ProductService {
     }
   }
 
-  Map<String, dynamic> _decodeObject(http.Response response) {
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Expected a JSON object from DummyJSON.');
-    }
-    return decoded;
-  }
-
-  void _ensureSuccess(http.Response response, Uri uri) {
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ProductServiceException(
-        message: 'Request to $uri failed.',
-        statusCode: response.statusCode,
-      );
-    }
-  }
 }
