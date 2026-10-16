@@ -1,3 +1,5 @@
+import 'tienda_app/lib/top_tags.dart' as implementation;
+
 /// RF-03 · Etiquetas populares.
 ///
 /// Retorna las [k] etiquetas más frecuentes de [tags], en minúsculas.
@@ -17,6 +19,5 @@
 /// `topTags(['beauty', 'mascara', 'beauty', 'meat', 'meat', 'beauty'], 2)`
 /// → `['beauty', 'meat']`
 List<String> topTags(List<String> tags, int k) {
-  // TODO(candidato): implementar.
-  throw UnimplementedError();
+  return implementation.topTags(tags, k);
 }
