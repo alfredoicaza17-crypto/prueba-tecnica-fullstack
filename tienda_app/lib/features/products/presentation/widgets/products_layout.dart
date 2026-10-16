@@ -9,6 +9,7 @@ class ProductsLayout extends StatelessWidget {
     required this.totalPages,
     required this.onPreviousPage,
     required this.onNextPage,
+    required this.onOpenFavorites,
     this.isRefreshing = false,
   });
 
@@ -18,6 +19,7 @@ class ProductsLayout extends StatelessWidget {
   final int totalPages;
   final VoidCallback onPreviousPage;
   final VoidCallback onNextPage;
+  final VoidCallback onOpenFavorites;
   final bool isRefreshing;
 
   @override
@@ -26,6 +28,11 @@ class ProductsLayout extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Ismael Moron - Tienda App'),
         actions: [
+          IconButton(
+            onPressed: onOpenFavorites,
+            tooltip: 'Ver favoritos',
+            icon: const Icon(Icons.favorite_border),
+          ),
           IconButton(
             onPressed: isRefreshing ? null : onRefresh,
             tooltip: 'Actualizar productos',

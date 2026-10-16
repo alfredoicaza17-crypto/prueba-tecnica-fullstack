@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' show ClientException;
+import 'package:tienda_app/features/favorites/presentation/favorites_page.dart';
 import 'package:tienda_app/features/favorites/data/repositories/favorites_repository.dart';
 import 'package:tienda_app/top_tags.dart';
 
@@ -135,9 +136,22 @@ class _ProductsPageState extends State<ProductsPage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _openFavorites() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            FavoritesPage(repository: _favoritesRepository),
+      ),
+    );
+    if (mounted) {
+      await _loadFavoriteIds();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ProductsLayout(
+      onOpenFavorites: _openFavorites,
       isRefreshing: _isLoading,
       onRefresh: () => _loadPage(_currentPage),
       currentPage: _currentPage,

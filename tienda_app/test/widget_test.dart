@@ -240,29 +240,128 @@ void main() {
     expect(repository.favorites, isEmpty);
     expect(find.byTooltip('Agregar a favoritos'), findsNWidgets(2));
   });
+
+  testWidgets('opens favorites, removes an item, and refreshes the list', (
+    tester,
+  ) async {
+    final repository = _FakeFavoritesRepository(
+      initialFavorites: [
+        Favorite(
+          id: 1,
+          title: 'Older favorite',
+          price: 12.5,
+          thumbnailUrl: 'https://example.com/older.jpg',
+          addedAt: DateTime.utc(2025),
+          tags: const ['older-tag'],
+        ),
+        Favorite(
+          id: 2,
+          title: 'Newest favorite',
+          price: 49.99,
+          thumbnailUrl: 'https://example.com/newest.jpg',
+          addedAt: DateTime.utc(2026),
+          tags: const ['furniture'],
+        ),
+      ],
+    );
+    final service = ProductService(
+      client: MockClient(
+        (request) async => http.Response(_productResponse, 200),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MyApp(productService: service, favoritesRepository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Ver favoritos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Favoritos'), findsOneWidget);
+    expect(find.text('Newest favorite'), findsOneWidget);
+    expect(find.text('\$49.99'), findsOneWidget);
+    expect(find.text('furniture'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Newest favorite')).dy,
+      lessThan(tester.getTopLeft(find.text('Older favorite')).dy),
+    );
+
+    await tester.tap(find.byTooltip('Quitar de favoritos').first);
+    await tester.pumpAndSettle();
+    expect(repository.favorites, isNot(contains(2)));
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ismael Moron - Tienda App'), findsOneWidget);
+    expect(find.byTooltip('Quitar de favoritos'), findsOneWidget);
+    expect(find.byTooltip('Agregar a favoritos'), findsOneWidget);
+  });
+
+  testWidgets('shows an empty message when there are no favorites', (
+    tester,
+  ) async {
+    final service = ProductService(
+      client: MockClient(
+        (request) async => http.Response(_productResponse, 200),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Ver favoritos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todavía no tienes favoritos.'), findsOneWidget);
+  });
 }
 
 class _FakeFavoritesRepository extends FavoritesRepository {
-  _FakeFavoritesRepository() : super(databaseProvider: _unusedDatabaseProvider);
+  _FakeFavoritesRepository({Iterable<Favorite> initialFavorites = const []})
+    : super(databaseProvider: _unusedDatabaseProvider) {
+    for (final favorite in initialFavorites) {
+      _favoritesById[favorite.id] = favorite;
+    }
+  }
 
   static Future<Database> _unusedDatabaseProvider() =>
       throw UnimplementedError('The widget tests use the in-memory fake.');
 
-  final Set<int> favorites = {};
+  final Map<int, Favorite> _favoritesById = {};
+
+  Set<int> get favorites => _favoritesById.keys.toSet();
 
   @override
-  Future<List<Favorite>> getFavorites() async => const [];
+  Future<List<Favorite>> getFavorites() async {
+    final favorites = _favoritesById.values.toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    return favorites;
+  }
 
   @override
   Future<Set<int>> getFavoriteIds() async => favorites.toSet();
 
   @override
   Future<void> addFavorite(ProductDto product) async {
-    favorites.add(product.id);
+    _favoritesById[product.id] = Favorite(
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      thumbnailUrl: product.thumbnail,
+      addedAt: DateTime.now().toUtc(),
+      tags: product.tags,
+    );
   }
 
   @override
   Future<void> removeFavorite(int productId) async {
-    favorites.remove(productId);
+    _favoritesById.remove(productId);
   }
 }
