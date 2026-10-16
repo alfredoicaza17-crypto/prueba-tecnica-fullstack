@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:tienda_app/features/favorites/data/models/favorite.dart';
+import 'package:tienda_app/features/favorites/data/repositories/favorites_repository.dart';
+import 'package:tienda_app/features/products/data/models/product_dto.dart';
 import 'package:tienda_app/features/products/data/services/product_service.dart';
 import 'package:tienda_app/main.dart';
 
@@ -50,7 +54,12 @@ void main() {
       }),
     );
 
-    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.pumpAndSettle();
@@ -67,10 +76,17 @@ void main() {
     tester,
   ) async {
     final service = ProductService(
-      client: MockClient((request) async => http.Response(_productResponse, 200)),
+      client: MockClient(
+        (request) async => http.Response(_productResponse, 200),
+      ),
     );
 
-    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(ChoiceChip), findsNWidgets(3));
@@ -100,7 +116,12 @@ void main() {
       }),
     );
 
-    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -124,7 +145,12 @@ void main() {
       }),
     );
 
-    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Sin conexión a internet.'), findsOneWidget);
@@ -153,7 +179,12 @@ void main() {
       }),
     );
 
-    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpWidget(
+      MyApp(
+        productService: service,
+        favoritesRepository: _FakeFavoritesRepository(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Página 1 de 3'), findsOneWidget);
@@ -181,4 +212,57 @@ void main() {
     expect(find.text('Página 1 de 3'), findsOneWidget);
     expect(requestCount, 3);
   });
+
+  testWidgets('marks a product as favorite and then removes it', (
+    tester,
+  ) async {
+    final repository = _FakeFavoritesRepository();
+    final service = ProductService(
+      client: MockClient(
+        (request) async => http.Response(_productResponse, 200),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MyApp(productService: service, favoritesRepository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Agregar a favoritos').first);
+    await tester.pumpAndSettle();
+
+    expect(repository.favorites, contains(1));
+    expect(find.byTooltip('Quitar de favoritos'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Quitar de favoritos'));
+    await tester.pumpAndSettle();
+
+    expect(repository.favorites, isEmpty);
+    expect(find.byTooltip('Agregar a favoritos'), findsNWidgets(2));
+  });
+}
+
+class _FakeFavoritesRepository extends FavoritesRepository {
+  _FakeFavoritesRepository() : super(databaseProvider: _unusedDatabaseProvider);
+
+  static Future<Database> _unusedDatabaseProvider() =>
+      throw UnimplementedError('The widget tests use the in-memory fake.');
+
+  final Set<int> favorites = {};
+
+  @override
+  Future<List<Favorite>> getFavorites() async => const [];
+
+  @override
+  Future<Set<int>> getFavoriteIds() async => favorites.toSet();
+
+  @override
+  Future<void> addFavorite(ProductDto product) async {
+    favorites.add(product.id);
+  }
+
+  @override
+  Future<void> removeFavorite(int productId) async {
+    favorites.remove(productId);
+  }
 }

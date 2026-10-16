@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' show ClientException;
+import 'package:tienda_app/features/favorites/data/repositories/favorites_repository.dart';
 import 'package:tienda_app/top_tags.dart';
 
 import '../data/models/product_dto.dart';
@@ -11,9 +12,10 @@ import 'widgets/products_layout.dart';
 const _pageSize = 20;
 
 class ProductsPage extends StatefulWidget {
-  const ProductsPage({super.key, this.service});
+  const ProductsPage({super.key, this.service, this.favoritesRepository});
 
   final ProductService? service;
+  final FavoritesRepository? favoritesRepository;
 
   @override
   State<ProductsPage> createState() => _ProductsPageState();
@@ -21,7 +23,10 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> {
   late final ProductService _service;
+  late final FavoritesRepository _favoritesRepository;
   List<ProductDto> _products = const [];
+  Set<int> _favoriteIds = {};
+  final Set<int> _updatingFavoriteIds = {};
   List<String> _popularTags = const [];
   String? _selectedTag;
   int _currentPage = 0;
@@ -34,7 +39,9 @@ class _ProductsPageState extends State<ProductsPage> {
   void initState() {
     super.initState();
     _service = widget.service ?? ProductService();
+    _favoritesRepository = widget.favoritesRepository ?? FavoritesRepository();
     _loadPage(0);
+    _loadFavoriteIds();
   }
 
   @override
@@ -76,6 +83,56 @@ class _ProductsPageState extends State<ProductsPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadFavoriteIds() async {
+    try {
+      final favoriteIds = await _favoritesRepository.getFavoriteIds();
+      if (!mounted) return;
+      setState(() => _favoriteIds = favoriteIds);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load favorites: $error\n$stackTrace');
+      if (!mounted) return;
+      _showFavoriteError('No se pudieron cargar los favoritos.');
+    }
+  }
+
+  Future<void> _toggleFavorite(ProductDto product) async {
+    if (_updatingFavoriteIds.contains(product.id)) return;
+    final isFavorite = _favoriteIds.contains(product.id);
+    setState(() => _updatingFavoriteIds.add(product.id));
+
+    try {
+      if (isFavorite) {
+        await _favoritesRepository.removeFavorite(product.id);
+      } else {
+        await _favoritesRepository.addFavorite(product);
+      }
+      if (!mounted) return;
+      setState(() {
+        if (isFavorite) {
+          _favoriteIds.remove(product.id);
+        } else {
+          _favoriteIds.add(product.id);
+        }
+      });
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to update favorite ${product.id}: $error\n$stackTrace',
+      );
+      if (mounted) {
+        _showFavoriteError('No se pudo actualizar el favorito.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingFavoriteIds.remove(product.id));
+      }
+    }
+  }
+
+  void _showFavoriteError(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -164,8 +221,17 @@ class _ProductsPageState extends State<ProductsPage> {
                         childAspectRatio: 0.72,
                       ),
                       itemCount: visibleProducts.length,
-                      itemBuilder: (context, index) =>
-                          _ProductCard(product: visibleProducts[index]),
+                      itemBuilder: (context, index) {
+                        final product = visibleProducts[index];
+                        return _ProductCard(
+                          product: product,
+                          isFavorite: _favoriteIds.contains(product.id),
+                          isUpdatingFavorite: _updatingFavoriteIds.contains(
+                            product.id,
+                          ),
+                          onToggleFavorite: () => _toggleFavorite(product),
+                        );
+                      },
                     ),
             ),
           ],
@@ -176,9 +242,17 @@ class _ProductsPageState extends State<ProductsPage> {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product});
+  const _ProductCard({
+    required this.product,
+    required this.isFavorite,
+    required this.isUpdatingFavorite,
+    required this.onToggleFavorite,
+  });
 
   final ProductDto product;
+  final bool isFavorite;
+  final bool isUpdatingFavorite;
+  final VoidCallback onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -189,18 +263,39 @@ class _ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: SizedBox(
-              width: double.infinity,
-              child: Image.network(
-                product.thumbnail,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => ColoredBox(
-                  color: colors.surfaceContainerHighest,
-                  child: const Center(
-                    child: Icon(Icons.image_not_supported_outlined, size: 40),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  product.thumbnail,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => ColoredBox(
+                    color: colors.surfaceContainerHighest,
+                    child: const Center(
+                      child: Icon(Icons.image_not_supported_outlined, size: 40),
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton.filledTonal(
+                    onPressed: isUpdatingFavorite ? null : onToggleFavorite,
+                    tooltip: isFavorite
+                        ? 'Quitar de favoritos'
+                        : 'Agregar a favoritos',
+                    icon: isUpdatingFavorite
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? colors.error : null,
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(

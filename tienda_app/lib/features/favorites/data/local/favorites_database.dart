@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class FavoritesDatabase {
   FavoritesDatabase._();
@@ -12,9 +14,17 @@ class FavoritesDatabase {
   static Future<Database> get instance => _database ??= _openDatabase();
 
   static Future<Database> _openDatabase() async {
-    final databasePath = await getDatabasesPath();
+    final String databasePath;
+    if (defaultTargetPlatform == TargetPlatform.linux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      final supportDirectory = await getApplicationSupportDirectory();
+      databasePath = join(supportDirectory.path, _databaseName);
+    } else {
+      databasePath = join(await getDatabasesPath(), _databaseName);
+    }
     return openDatabase(
-      join(databasePath, _databaseName),
+      databasePath,
       version: _databaseVersion,
       onConfigure: (database) async {
         await database.execute('PRAGMA foreign_keys = ON');
