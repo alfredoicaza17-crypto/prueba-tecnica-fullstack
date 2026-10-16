@@ -20,6 +20,7 @@ void main() {
     'stock': 99,
     'thumbnail': 'https://example.com/thumbnail.webp',
     'images': ['https://example.com/product.webp'],
+    'tags': ['beauty', 'mascara'],
   };
 
   http.Response jsonResponse(Object body, {int statusCode = 200}) {

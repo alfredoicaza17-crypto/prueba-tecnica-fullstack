@@ -18,10 +18,24 @@ const _productResponse = '''
       "rating": 4.5,
       "stock": 5,
       "thumbnail": "https://example.com/product.jpg",
-      "images": []
+      "images": [],
+      "tags": ["Beauty", "mascara", "beauty"]
+    },
+    {
+      "id": 2,
+      "title": "Wooden Chair",
+      "description": "A chair",
+      "category": "furniture",
+      "price": 49.99,
+      "discountPercentage": 0,
+      "rating": 4.2,
+      "stock": 12,
+      "thumbnail": "https://example.com/chair.jpg",
+      "images": [],
+      "tags": ["furniture"]
     }
   ],
-  "total": 1,
+  "total": 2,
   "skip": 0,
   "limit": 20
 }
@@ -43,9 +57,35 @@ void main() {
 
     expect(find.text('Ismael Moron - Tienda App'), findsOneWidget);
     expect(find.text('Essence Mascara'), findsOneWidget);
-    expect(find.text('beauty'), findsOneWidget);
+    expect(find.text('Wooden Chair'), findsOneWidget);
+    expect(find.text('beauty'), findsNWidgets(2));
     expect(find.text('\$9.99'), findsOneWidget);
     expect(find.text('4.5'), findsOneWidget);
+  });
+
+  testWidgets('filters products by popular tag and toggles the filter off', (
+    tester,
+  ) async {
+    final service = ProductService(
+      client: MockClient((request) async => http.Response(_productResponse, 200)),
+    );
+
+    await tester.pumpWidget(MyApp(productService: service));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChoiceChip), findsNWidgets(3));
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'beauty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Essence Mascara'), findsOneWidget);
+    expect(find.text('Wooden Chair'), findsNothing);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'beauty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Essence Mascara'), findsOneWidget);
+    expect(find.text('Wooden Chair'), findsOneWidget);
   });
 
   testWidgets('shows an error and retries fetching products', (tester) async {
@@ -107,7 +147,7 @@ void main() {
         });
         requestCount++;
         return http.Response(
-          _productResponse.replaceFirst('"total": 1', '"total": 41'),
+          _productResponse.replaceFirst('"total": 2', '"total": 41'),
           200,
         );
       }),

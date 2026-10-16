@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' show ClientException;
+import 'package:tienda_app/top_tags.dart';
 
 import '../data/models/product_dto.dart';
 import '../data/services/product_service.dart';
@@ -21,6 +22,8 @@ class ProductsPage extends StatefulWidget {
 class _ProductsPageState extends State<ProductsPage> {
   late final ProductService _service;
   List<ProductDto> _products = const [];
+  List<String> _popularTags = const [];
+  String? _selectedTag;
   int _currentPage = 0;
   int _requestedPage = 0;
   int _totalProducts = 0;
@@ -55,6 +58,13 @@ class _ProductsPageState extends State<ProductsPage> {
       if (!mounted) return;
       setState(() {
         _products = response.products;
+        _popularTags = topTags(
+          response.products.expand((product) => product.tags).toList(),
+          5,
+        );
+        if (page != _currentPage) {
+          _selectedTag = null;
+        }
         _currentPage = page;
         _totalProducts = response.total;
         _isLoading = false;
@@ -107,17 +117,58 @@ class _ProductsPageState extends State<ProductsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth >= 700 ? 3 : 2;
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.72,
-          ),
-          itemCount: _products.length,
-          itemBuilder: (context, index) =>
-              _ProductCard(product: _products[index]),
+        final visibleProducts = _selectedTag == null
+            ? _products
+            : _products
+                  .where(
+                    (product) => product.tags.any(
+                      (tag) => tag.toLowerCase() == _selectedTag,
+                    ),
+                  )
+                  .toList(growable: false);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_popularTags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final tag in _popularTags)
+                      ChoiceChip(
+                        label: Text(tag),
+                        selected: _selectedTag == tag,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedTag = selected ? tag : null;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: visibleProducts.isEmpty
+                  ? const Center(
+                      child: Text('No hay productos con esta etiqueta.'),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.72,
+                      ),
+                      itemCount: visibleProducts.length,
+                      itemBuilder: (context, index) =>
+                          _ProductCard(product: visibleProducts[index]),
+                    ),
+            ),
+          ],
         );
       },
     );

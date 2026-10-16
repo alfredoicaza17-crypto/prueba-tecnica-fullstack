@@ -10,6 +10,7 @@ class ProductDto {
     required this.stock,
     required this.thumbnail,
     required this.images,
+    required this.tags,
   });
 
   final int id;
@@ -22,6 +23,7 @@ class ProductDto {
   final int stock;
   final String thumbnail;
   final List<String> images;
+  final List<String> tags;
 
   factory ProductDto.fromJson(Map<String, dynamic> json) {
     return ProductDto(
@@ -35,6 +37,7 @@ class ProductDto {
       stock: json['stock'] as int,
       thumbnail: json['thumbnail'] as String,
       images: (json['images'] as List<dynamic>).cast<String>(),
+      tags: ((json['tags'] as List<dynamic>?) ?? const []).cast<String>(),
     );
   }
 
@@ -50,6 +53,7 @@ class ProductDto {
       'stock': stock,
       'thumbnail': thumbnail,
       'images': images,
+      'tags': tags,
     };
   }
 }

@@ -14,6 +14,7 @@ void main() {
     'stock': 99,
     'thumbnail': 'https://example.com/thumbnail.webp',
     'images': ['https://example.com/product.webp'],
+    'tags': ['beauty', 'mascara'],
   };
 
   group('ProductDto', () {
@@ -24,6 +25,13 @@ void main() {
       expect(product.title, 'Essence Mascara Lash Princess');
       expect(product.price, 9.99);
       expect(product.images, ['https://example.com/product.webp']);
+      expect(product.tags, ['beauty', 'mascara']);
+    });
+
+    test('defaults tags to an empty list when missing from JSON', () {
+      final product = ProductDto.fromJson({...productJson}..remove('tags'));
+
+      expect(product.tags, isEmpty);
     });
 
     test('serializes a product to JSON', () {
