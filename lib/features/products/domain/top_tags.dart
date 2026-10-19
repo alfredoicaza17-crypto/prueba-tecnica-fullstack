@@ -17,6 +17,19 @@
 /// `topTags(['beauty', 'mascara', 'beauty', 'meat', 'meat', 'beauty'], 2)`
 /// → `['beauty', 'meat']`
 List<String> topTags(List<String> tags, int k) {
-  // TODO(candidato): implementar.
-  throw UnimplementedError();
+  if (k <= 0) return [];
+
+  final counts = <String, int>{};
+  for (final tag in tags) {
+    final key = tag.toLowerCase();
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  final entries = counts.entries.toList()
+    ..sort((a, b) {
+      final byCount = b.value.compareTo(a.value);
+      return byCount != 0 ? byCount : a.key.compareTo(b.key);
+    });
+
+  return entries.take(k).map((e) => e.key).toList();
 }
